@@ -1,10 +1,15 @@
 import styled from "styled-components";
+import { useForm } from "react-hook-form";
+import toast from 'react-hot-toast'
 
 import Input from "../../ui/Input";
 import Form from "../../ui/Form";
 import Button from "../../ui/Button";
 import FileInput from "../../ui/FileInput";
 import Textarea from "../../ui/Textarea";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createCabin } from "../../services/apiCabins";
+import FormRowTwo from "../../ui/FormRow";
 
 const FormRow = styled.div`
   display: grid;
@@ -39,48 +44,77 @@ const Label = styled.label`
 
 const Error = styled.span`
   font-size: 1.4rem;
-  color: var(--color-red-700);
+  color: var(--color-red-700)
 `;
 
 function CreateCabinForm() {
+  const {register,handleSubmit,reset,getValues,formState} = useForm()
+  const { errors } = formState;
+
+  const queryClient = useQueryClient()
+  const {isLoading : isCreating,mutate} = useMutation({
+    mutationFn : createCabin,
+    onSuccess : () => {
+      toast.success('New Cabin successfully created')
+      queryClient.invalidateQueries({
+        queryKey : ['cabins']
+      })
+      reset()
+    },
+    onError : (err) => toast.error(err.message)
+  })
+  
+  function onSubmit(data){
+    mutate(data)
+  }
+  function onError(errors){
+    /* console.log(errors) */
+  }
   return (
-    <Form>
-      <FormRow>
-        <Label htmlFor="name">Cabin name</Label>
-        <Input type="text" id="name" />
-      </FormRow>
+    <Form onSubmit={handleSubmit(onSubmit,onError)}>
+      <FormRowTwo label='Cabin name' error ={errors?.name?.message}>
+        <Input type="text" id="name" {...register('name',
+          {required : "This field is required"})} />
+    </FormRowTwo>
+      <FormRowTwo 
+      label='Maximum Capacity' 
+      error ={errors?.maxCapacity?.message}>  
+      <Input type="number" id="maxCapacity" {...register('maxCapacity',{
+          required : 'This field is required',
+          min : {
+            value : 1,
+            message : 'Capacity should be atleast 1'
+          }
+        })} /></FormRowTwo>
+        <FormRowTwo label='Regular Price' error={errors?.regularPrice?.message}>
+           <Input type='number' id='regularPrice' {...register('regularPrice')}/>
+        </FormRowTwo>
+     
+      <FormRowTwo label='Discount' 
+      error ={errors?.discount?.message}>
+      <Input type="number" id="discount" defaultValue={0} {...register('discount',{
+          required : 'This field is required',
+          validate :  (value) => value < getValues().regularPrice || 'discount should be less than the regular value'
+        })}/></FormRowTwo>
+        <FormRowTwo label='Description For Website' error ={errors?.description?.message}> 
+          <Textarea type="number" id="description" defaultValue="" {...register('description',{
+            required : 'This field is required'
+        })}/></FormRowTwo>
+        <FormRowTwo
+         label='Cabin Photo'
+        >
+        <FileInput id='image' accept='image'/>
+        </FormRowTwo>
 
-      <FormRow>
-        <Label htmlFor="maxCapacity">Maximum capacity</Label>
-        <Input type="number" id="maxCapacity" />
-      </FormRow>
-
-      <FormRow>
-        <Label htmlFor="regularPrice">Regular price</Label>
-        <Input type="number" id="regularPrice" />
-      </FormRow>
-
-      <FormRow>
-        <Label htmlFor="discount">Discount</Label>
-        <Input type="number" id="discount" defaultValue={0} />
-      </FormRow>
-
-      <FormRow>
-        <Label htmlFor="description">Description for website</Label>
-        <Textarea type="number" id="description" defaultValue="" />
-      </FormRow>
-
-      <FormRow>
-        <Label htmlFor="image">Cabin photo</Label>
-        <FileInput id="image" accept="image/*" />
-      </FormRow>
 
       <FormRow>
         {/* type is an HTML attribute! */}
         <Button variation="secondary" type="reset">
           Cancel
         </Button>
-        <Button>Edit cabin</Button>
+        <Button 
+        disabled={isCreating}
+        >Add cabin</Button>
       </FormRow>
     </Form>
   );
